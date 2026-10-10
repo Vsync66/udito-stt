@@ -1,0 +1,5 @@
+openvino>=2026.2
+openvino-genai>=2026.2
+librosa>=0.10
+huggingface_hub>=0.20
+numpy>=1.26

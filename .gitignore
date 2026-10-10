@@ -1,0 +1,35 @@
+# local models (downloaded by the user at setup via scripts/fetch_models.py)
+hf_cache/
+whisper-models/
+models/emotion_onnx/*.onnx
+# ONNX source weights: downloaded by fetch_models
+models/emotion_onnx/onnx/*
+# derived emotion IR: the daemon auto-converts it on first use
+models/*/ov/
+
+# NOTE: models/rnnoise/std.rnnn IS committed (~300KB, public-domain rnnoise-nu
+# model) so rnnoise mode works offline with zero setup.
+
+# benchmark tooling + results (machine-local: test audio lives outside the repo)
+bench/
+benchmark_scenarios.py
+
+# working debris
+__pycache__/
+.pytest_cache/
+.venv/
+*.log
+_decoded*.wav
+
+# local config (never shipped — users copy config.example.yaml)
+config.yaml
+
+# generated launchers (install_autostart.py rewrites these with correct paths)
+start_daemon.bat
+run_daemon_silent.vbs
+
+# local runtime artifacts
+blob_cache/
+
+# internal design history (DECISIONS.md is the shipped version)
+archive/

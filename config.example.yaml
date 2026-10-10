@@ -1,0 +1,71 @@
+# Udito configuration. Copy this file to config.yaml and edit it.
+# Flat key: value format. Boot validates everything and fails loudly, naming
+# the problem and the fix.
+
+# ---- compile cache ----
+# Saves the compiled model blob so later boots load it instead of recompiling
+# (measured: 39-70s first boot, about 2s after). Blobs are driver-specific;
+# after a driver update the stale blob fails to load and the daemon rebuilds
+# it once, automatically.
+compile_cache: true
+compile_cache_dir: ""   # default: <repo>/blob_cache/<device>/ (gitignored)
+
+# ---- noise reduction ----
+# off | afftdn | rnnoise. Default OFF: clean audio is never silently processed.
+#   afftdn  = FFT denoiser; kills stationary noise (fan hum, hiss). May perturb emotion reads.
+#   rnnoise = RNNoise-class NN via ffmpeg arnndn; also eats transients (pen clicks). Recommended for noisy mics.
+noise_reduction: "off"
+noise_reduction_model: "models/rnnoise/std.rnnn"
+
+# ---- transcription model ----
+# model: HuggingFace repo id (downloaded on first use) or a local IR folder name.
+# Tested family (all int8 OpenVINO exports, all NPU-safe):
+#   OpenVINO/whisper-base-int8-ov      (~120MB, fastest, weakest accuracy)
+#   OpenVINO/whisper-small-int8-ov     (245MB, default, the benchmark point)
+#   OpenVINO/whisper-medium-int8-ov    (~770MB, better accuracy, slower, more RAM)
+# GPU/CPU-only: OpenVINO/whisper-large-v3-turbo-int8-ov (best accuracy; the NPU
+# has memory and 30s-context limits for the large model).
+# The compile cache is per model: switching models pays one compile per model.
+model: "OpenVINO/whisper-small-int8-ov"
+model_dir: ""   # local IR override, wins over model. Must contain openvino_{encoder,decoder}_model.{xml,bin} + tokenizer files.
+
+# device: NPU | GPU | CPU | auto. auto probes NPU, then GPU, then CPU, and logs
+# its choice. NPU requires an int8 OpenVINO export and raises at boot otherwise,
+# naming the missing files. NPU is always sequential (one tensor processor).
+device: "auto"
+
+# ---- emotion head (opt-in per request: {"emotion": true}) ----
+# Runs on OpenVINO CPU, the same runtime as whisper (one runtime for the whole
+# product; the ONNX export converts to IR on first use). Weights do not ship
+# in the repo: 'python main.py models' downloads them.
+emotion_model: "emotion_onnx"
+# Input prep normalizes to zero-mean/unit-variance (wav2vec2's training
+# convention) unconditionally. Verified on a real voice; part of correctness.
+# Tag the transcript text itself: "... [calm 0.84]"
+emotion_in_text: true
+
+# ---- punctuation (one-symbol design) ----
+# off = raw | pause = real acoustic pauses over pause_ms become "..."
+punct_default: "pause"
+pause_ms: 600
+
+# ---- volume boost (quiet-take rescue) ----
+boost_enabled: true
+boost_target_rms: "0.05"   # target speaking level
+boost_max_gain: "8"        # hard cap so quiet never becomes weird
+
+# ---- production surface ----
+port: 8764
+max_audio_seconds: 300   # requests above this are refused fast, never lock the daemon
+concurrency: sequential  # parallel only on GPU/CPU; NPU always sequential
+
+# ---- whisper generation ----
+beam_size: 1             # >1 on NPU raises at boot (Intel remote-tensor reshape bug)
+language: ""             # "" = auto-detect
+initial_prompt: ""       # set on NPU raises at boot (Intel ROI crash); GPU/CPU only
+
+# ---- client retries (client.py / udito.bat) ----
+# Attempts against the daemon before falling back to the one-shot path, and
+# the delay between them (covers a daemon mid-restart).
+retry_attempts: 2
+retry_delay: 1.5
